@@ -1,0 +1,15 @@
+{
+    "image_path": "",
+    "opacity": 0.8,
+    "text": "按任意键退出屏保",
+    "text_position": "center",
+    "text_x": -1,
+    "text_y": -1,
+    "text_color": "#FFFFFF",
+    "text_size": 32,
+    "font_family": "Microsoft YaHei",
+    "idle_timeout_seconds": 300,
+    "logged_in_idle_timeout_seconds": 600,
+    "slide_interval_seconds": 10,
+    "background_color": "#000000"
+}
