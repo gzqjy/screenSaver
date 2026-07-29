@@ -2,6 +2,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QDebug>
+#include <QDirIterator>
 
 static const QStringList IMAGE_FILTERS = {
     "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif"
@@ -32,11 +33,11 @@ bool ImageManager::loadFromPath(const QString &path)
         m_imagePaths.append(path);
         qDebug() << "ImageManager: loaded single image:" << path;
     } else if (info.isDir()) {
-        // 目录 - 扫描所有图片文件
-        QDir dir(path);
-        QFileInfoList entries = dir.entryInfoList(IMAGE_FILTERS, QDir::Files, QDir::Name);
-        for (const QFileInfo &entry : entries) {
-            m_imagePaths.append(entry.absoluteFilePath());
+        // 目录 - 扫描所有图片文件（支持多层子目录）
+        QDirIterator it(path, IMAGE_FILTERS, QDir::Files | QDir::NoSymLinks, QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            it.next();
+            m_imagePaths.append(it.fileInfo().absoluteFilePath());
         }
         qDebug() << "ImageManager: loaded" << m_imagePaths.size() << "images from directory:" << path;
     }
