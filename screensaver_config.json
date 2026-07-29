@@ -1,5 +1,5 @@
 {
-    "image_path": "",
+    "image_path": "E:\\Release\\wallpaper",
     "opacity": 0.8,
     "text": "按任意键退出屏保",
     "text_position": "center",
@@ -8,8 +8,8 @@
     "text_color": "#FFFFFF",
     "text_size": 32,
     "font_family": "Microsoft YaHei",
-    "idle_timeout_seconds": 2,
-    "logged_in_idle_timeout_seconds": 2,
-    "slide_interval_seconds": 10,
+    "idle_timeout_seconds": 3,
+    "logged_in_idle_timeout_seconds": 6,
+    "slide_interval_seconds": 1,
     "background_color": "#000000"
 }
