@@ -6,6 +6,7 @@
 #include <QDateTime>
 #include <QFontDatabase>
 #include <QStringList>
+#include <QDirIterator>
 #include "ScreenSaverConfig.h"
 #include "IdleMonitor.h"
 #include "ScreenSaverManager.h"
@@ -111,6 +112,9 @@ int main(int argc, char *argv[])
     QString fontFamily = config.fontFamily();
     QString appDirLocal = QApplication::applicationDirPath();
     QStringList fontFiles = { fontFamily, fontFamily + ".ttf", fontFamily + ".otf", fontFamily + ".ttc" };
+    
+    bool fontLoaded = false;
+    // 1. 先尝试直接相对路径加载（支持配置里写死如 "fonts/myfont.ttf"）
     for (const QString &file : fontFiles) {
         QString fontPath = appDirLocal + "/" + file;
         if (QFileInfo::exists(fontPath)) {
@@ -119,8 +123,38 @@ int main(int argc, char *argv[])
                 QStringList families = QFontDatabase::applicationFontFamilies(fontId);
                 if (!families.isEmpty()) {
                     config.setFontFamily(families.at(0));
-                    qDebug() << "ScreenSaver: Loaded local font:" << fontPath << "as family:" << families.at(0);
+                    qDebug() << "ScreenSaver: Loaded local font directly:" << fontPath << "as family:" << families.at(0);
+                    fontLoaded = true;
                     break;
+                }
+            }
+        }
+    }
+
+    // 2. 如果没找到，递归扫描整个程序所在目录及所有子文件夹，寻找同名字体文件
+    if (!fontLoaded && !fontFamily.isEmpty()) {
+        QDirIterator it(appDirLocal, QStringList() << "*.ttf" << "*.otf" << "*.ttc", QDir::Files, QDirIterator::Subdirectories);
+        while (it.hasNext() && !fontLoaded) {
+            it.next();
+            QString fileName = it.fileName();
+            // 忽略大小写匹配文件名
+            bool match = false;
+            for (const QString &expected : fontFiles) {
+                if (fileName.compare(expected, Qt::CaseInsensitive) == 0) {
+                    match = true;
+                    break;
+                }
+            }
+            
+            if (match) {
+                int fontId = QFontDatabase::addApplicationFont(it.filePath());
+                if (fontId != -1) {
+                    QStringList families = QFontDatabase::applicationFontFamilies(fontId);
+                    if (!families.isEmpty()) {
+                        config.setFontFamily(families.at(0));
+                        qDebug() << "ScreenSaver: Loaded local font from subdirectory:" << it.filePath() << "as family:" << families.at(0);
+                        fontLoaded = true;
+                    }
                 }
             }
         }
