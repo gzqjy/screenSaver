@@ -71,12 +71,7 @@ void ScreenSaverWidget::activate()
         m_imageManager.loadFromPath(m_config.imagePath());
     }
 
-    // 获取主屏幕尺寸，全屏显示
-    QScreen *screen = QApplication::primaryScreen();
-    if (screen) {
-        QRect screenGeometry = screen->geometry();
-        setGeometry(screenGeometry);
-    }
+    // 移除强制获取主屏幕尺寸的代码，因为 ScreenSaverManager 会针对每个屏幕独立设置 geometry
 
     // 隐藏鼠标光标
     setCursor(Qt::BlankCursor);
