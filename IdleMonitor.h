@@ -25,6 +25,7 @@ public:
     /// Windows: GetLastInputInfo
     /// Linux:   XScreenSaverQueryInfo (libXss)
     static quint64 getSystemIdleTimeMs();
+    static void reportActivity();
 
 signals:
     void triggered();

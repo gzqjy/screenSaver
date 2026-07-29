@@ -1,6 +1,13 @@
 #include "ScreenSaverWidget.h"
+#ifdef Q_OS_LINUX
+#include "x11_helper.h"
+#endif
+#ifdef Q_OS_LINUX
+#include "x11_helper.h"
+#endif
 #include <QPainter>
 #include <QKeyEvent>
+#include <QDateTime>
 #include <QMouseEvent>
 #include <QScreen>
 #include <QApplication>
@@ -36,6 +43,10 @@ ScreenSaverWidget::ScreenSaverWidget(const ScreenSaverConfig &config, QWidget *p
     m_slideTimer->setInterval(m_config.slideIntervalSeconds() * 1000);
     connect(m_slideTimer, &QTimer::timeout, this, &ScreenSaverWidget::onSlideTimer);
 
+    m_reparentTimer = new QTimer(this);
+    m_reparentTimer->setInterval(1000); // Check every second
+    connect(m_reparentTimer, &QTimer::timeout, this, &ScreenSaverWidget::onReparentTimer);
+
     // 加载图片
     if (!m_config.imagePath().isEmpty()) {
         m_imageManager.loadFromPath(m_config.imagePath());
@@ -53,6 +64,7 @@ void ScreenSaverWidget::activate()
     qDebug() << "ScreenSaverWidget: activating";
     m_active = true;
     m_mouseInitialized = false;
+    m_activationTime = QDateTime::currentMSecsSinceEpoch();
 
     // 重新加载图片（配置可能已变更）
     if (!m_config.imagePath().isEmpty()) {
@@ -81,6 +93,8 @@ void ScreenSaverWidget::activate()
     if (m_imageManager.imageCount() > 1) {
         m_slideTimer->start();
     }
+    
+    m_reparentTimer->start();
 }
 
 void ScreenSaverWidget::deactivate()
@@ -90,14 +104,26 @@ void ScreenSaverWidget::deactivate()
     qDebug() << "ScreenSaverWidget: deactivating";
     m_active = false;
     m_slideTimer->stop();
+    m_reparentTimer->stop();
     hide();
     emit dismissed();
 }
 
 // ---------- 绘制 ----------
 
+void ScreenSaverWidget::hideEvent(QHideEvent *event)
+{
+#ifdef Q_OS_LINUX
+    reparentToRoot(this->winId());
+#endif
+    QWidget::hideEvent(event);
+}
+
 void ScreenSaverWidget::showEvent(QShowEvent *event)
 {
+#ifdef Q_OS_LINUX
+    reparentToLockScreen(this->winId());
+#endif
     QWidget::showEvent(event);
 
 #ifdef Q_OS_WIN
@@ -245,16 +271,24 @@ QPoint ScreenSaverWidget::calcTextPosition(const QSize &widgetSize, const QSize 
 
 void ScreenSaverWidget::keyPressEvent(QKeyEvent * /*event*/)
 {
+    if (QDateTime::currentMSecsSinceEpoch() - m_activationTime < 500) return;
     deactivate();
 }
 
 void ScreenSaverWidget::mousePressEvent(QMouseEvent * /*event*/)
 {
+    if (QDateTime::currentMSecsSinceEpoch() - m_activationTime < 500) return;
     deactivate();
 }
 
 void ScreenSaverWidget::mouseMoveEvent(QMouseEvent *event)
 {
+    if (QDateTime::currentMSecsSinceEpoch() - m_activationTime < 500) {
+        m_lastMousePos = event->pos();
+        m_mouseInitialized = true;
+        return;
+    }
+
     // 首次移动记录位置，之后判断移动距离
     if (!m_mouseInitialized) {
         m_lastMousePos = event->pos();
@@ -275,4 +309,11 @@ void ScreenSaverWidget::onSlideTimer()
 {
     m_imageManager.nextImage();
     update(); // 触发重绘
+}
+
+void ScreenSaverWidget::onReparentTimer()
+{
+#ifdef Q_OS_LINUX
+    reparentToLockScreen(this->winId());
+#endif
 }

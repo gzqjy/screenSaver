@@ -39,7 +39,7 @@ public:
     static bool isUserLoggedIn();
 
     /// 自动发现活动显示会话（X11 或 Wayland）
-    static bool findDisplaySession(DisplaySession &session);
+    static bool getActiveTTYDisplay(DisplaySession &session, std::string &activeTty);
 
     /// 启动 ScreenSaver 进程
     static pid_t launchScreenSaver(const std::string &exePath,
@@ -63,6 +63,8 @@ private:
     // ----- 通用辅助 -----
     static std::string readEnvFromProc(pid_t pid, const std::string &varName);
     static pid_t findProcessByName(const std::string &name);
+    static std::string getAuthFromXorgCmdline(pid_t pid);
+    static bool getActiveLoginctlSession(std::string &display, SessionType &type);
 };
 
 #endif // !_WIN32

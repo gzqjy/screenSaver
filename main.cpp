@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
     QObject::connect(&idleMonitor, &IdleMonitor::triggered,
                      &manager, &ScreenSaverManager::activateAll);
 
-    // 屏保完全退出 → 重新开始检测空闲
+    // 无论以何种模式启动，只要屏保被解散，都退回后台监控状态
     QObject::connect(&manager, &ScreenSaverManager::allDismissed,
                      &idleMonitor, &IdleMonitor::start);
 
@@ -127,10 +127,11 @@ int main(int argc, char *argv[])
         // --show 模式：立即显示屏保（由服务启动时使用）
         qDebug() << "ScreenSaver: immediate show mode (launched by service)";
         manager.activateAll();
+        
+    } else {
+        // 启动空闲检测
+        idleMonitor.start();
     }
-
-    // 启动空闲检测
-    idleMonitor.start();
 
     qDebug() << "ScreenSaver application started";
     qDebug() << "  Config:" << configPath;
@@ -138,12 +139,5 @@ int main(int argc, char *argv[])
     qDebug() << "  Idle timeout (logged in):" << config.loggedInIdleTimeoutSeconds() << "seconds";
     qDebug() << "  Immediate show:" << immediateShow;
 
-    int result = app.exec();
-
-#ifdef Q_OS_WIN
-    if (hMutex)
-        CloseHandle(hMutex);
-#endif
-
-    return result;
+    return app.exec();
 }

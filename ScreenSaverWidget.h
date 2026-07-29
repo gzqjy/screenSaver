@@ -24,6 +24,7 @@ signals:
 
 protected:
     void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
@@ -31,6 +32,7 @@ protected:
 
 private slots:
     void onSlideTimer();
+    void onReparentTimer();
 
 private:
     void drawBackground(QPainter &painter);
@@ -41,9 +43,11 @@ private:
     const ScreenSaverConfig &m_config;
     ImageManager  m_imageManager;
     QTimer       *m_slideTimer;
+    QTimer       *m_reparentTimer;
     QPoint        m_lastMousePos;
     bool          m_mouseInitialized;
     bool          m_active;
+    qint64        m_activationTime;
 };
 
 #endif // SCREENSAVERWIDGET_H

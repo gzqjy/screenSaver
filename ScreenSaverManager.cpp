@@ -53,12 +53,8 @@ void ScreenSaverManager::activateAll()
 
 void ScreenSaverManager::deactivateAll()
 {
+    IdleMonitor::reportActivity();
     if (!m_active) return;
-
-    // 前500ms防止误触
-    if (QDateTime::currentMSecsSinceEpoch() - m_activationTime < 500) {
-        return;
-    }
 
     qDebug() << "ScreenSaverManager: Deactivating all screens";
     m_active = false;
@@ -123,3 +119,4 @@ void ScreenSaverManager::killLockApp()
     }
 #endif
 }
+
