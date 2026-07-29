@@ -39,7 +39,7 @@ set(SCREENSAVER_SOURCES
     ScreenSaverConfig.cpp
     IdleMonitor.cpp
     ImageManager.cpp
-    ScreenSaverWidget.cpp
+    ScreenSaverWidget.cpp x11_helper.cpp
     ScreenSaverManager.cpp
 )
 
@@ -61,13 +61,16 @@ elseif(UNIX AND NOT APPLE)
     # XScreenSaver 扩展（可选，X11 环境下使用）
     find_package(X11 QUIET)
     find_library(XSS_LIB Xss QUIET)
-    if(X11_FOUND AND XSS_LIB)
-        target_compile_definitions(ScreenSaver PRIVATE HAVE_XSS=1)
+    if(X11_FOUND)
         target_include_directories(ScreenSaver PRIVATE ${X11_INCLUDE_DIR})
-        target_link_libraries(ScreenSaver PRIVATE ${X11_LIBRARIES} ${XSS_LIB})
-        message(STATUS "X11 XScreenSaver extension: FOUND (X11+Wayland idle detection)")
-    else()
-        message(STATUS "X11 XScreenSaver extension: NOT FOUND (using D-Bus idle detection only)")
+        target_link_libraries(ScreenSaver PRIVATE ${X11_LIBRARIES})
+        if(XSS_LIB)
+            target_link_libraries(ScreenSaver PRIVATE ${XSS_LIB})
+            add_definitions(-DHAVE_XSS)
+            message(STATUS "X11 XScreenSaver extension: FOUND (X11+Wayland idle detection)")
+        else()
+            message(STATUS "X11 XScreenSaver extension: NOT FOUND (using X11 core + D-Bus idle detection)")
+        endif()
     endif()
 endif()
 

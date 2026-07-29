@@ -8,8 +8,8 @@
     "text_color": "#FFFFFF",
     "text_size": 32,
     "font_family": "Microsoft YaHei",
-    "idle_timeout_seconds": 300,
-    "logged_in_idle_timeout_seconds": 600,
+    "idle_timeout_seconds": 2,
+    "logged_in_idle_timeout_seconds": 2,
     "slide_interval_seconds": 10,
     "background_color": "#000000"
 }
