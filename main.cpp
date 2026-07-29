@@ -4,6 +4,8 @@
 #include <QFile>
 #include <QTextStream>
 #include <QDateTime>
+#include <QFontDatabase>
+#include <QStringList>
 #include "ScreenSaverConfig.h"
 #include "IdleMonitor.h"
 #include "ScreenSaverManager.h"
@@ -103,6 +105,25 @@ int main(int argc, char *argv[])
 
     if (!config.load(configPath)) {
         qWarning() << "Using default configuration";
+    }
+
+    // ---------- 加载本地字体（如果有） ----------
+    QString fontFamily = config.fontFamily();
+    QString appDirLocal = QApplication::applicationDirPath();
+    QStringList fontFiles = { fontFamily, fontFamily + ".ttf", fontFamily + ".otf", fontFamily + ".ttc" };
+    for (const QString &file : fontFiles) {
+        QString fontPath = appDirLocal + "/" + file;
+        if (QFileInfo::exists(fontPath)) {
+            int fontId = QFontDatabase::addApplicationFont(fontPath);
+            if (fontId != -1) {
+                QStringList families = QFontDatabase::applicationFontFamilies(fontId);
+                if (!families.isEmpty()) {
+                    config.setFontFamily(families.at(0));
+                    qDebug() << "ScreenSaver: Loaded local font:" << fontPath << "as family:" << families.at(0);
+                    break;
+                }
+            }
+        }
     }
 
     // ---------- 创建管理器 ----------

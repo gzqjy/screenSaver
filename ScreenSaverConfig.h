@@ -25,6 +25,7 @@ public:
     QColor textColor() const { return m_textColor; }
     int textSize() const { return m_textSize; }
     QString fontFamily() const { return m_fontFamily; }
+    void setFontFamily(const QString &family) { m_fontFamily = family; }
 
     // 超时设置
     int idleTimeoutSeconds() const { return m_idleTimeoutSeconds; }
@@ -33,6 +34,7 @@ public:
 
     // 背景
     QColor backgroundColor() const { return m_backgroundColor; }
+    qreal backgroundOpacity() const { return m_backgroundOpacity; }
 
 private:
     void setDefaults();
@@ -50,6 +52,7 @@ private:
     int     m_loggedInIdleTimeoutSeconds;
     int     m_slideIntervalSeconds;
     QColor  m_backgroundColor;
+    qreal   m_backgroundOpacity;
 };
 
 #endif // SCREENSAVERCONFIG_H
