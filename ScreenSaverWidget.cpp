@@ -32,11 +32,8 @@ ScreenSaverWidget::ScreenSaverWidget(const ScreenSaverConfig &config, QWidget *p
     // 接收鼠标移动事件
     setMouseTracking(true);
 
-    // 黑色背景
-    QPalette pal = palette();
-    pal.setColor(QPalette::Window, m_config.backgroundColor());
-    setAutoFillBackground(true);
-    setPalette(pal);
+    // 支持透明背景
+    setAttribute(Qt::WA_TranslucentBackground, true);
 
     // 图片轮播定时器
     m_slideTimer = new QTimer(this);
@@ -185,7 +182,10 @@ void ScreenSaverWidget::paintEvent(QPaintEvent * /*event*/)
 
 void ScreenSaverWidget::drawBackground(QPainter &painter)
 {
-    painter.fillRect(rect(), m_config.backgroundColor());
+    QColor bgColor = m_config.backgroundColor();
+    // 结合原有的 alpha 以及用户配置的透明度
+    bgColor.setAlphaF(bgColor.alphaF() * m_config.backgroundOpacity());
+    painter.fillRect(rect(), bgColor);
 }
 
 void ScreenSaverWidget::drawImage(QPainter &painter)

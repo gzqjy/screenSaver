@@ -24,6 +24,7 @@ void ScreenSaverConfig::setDefaults()
     m_loggedInIdleTimeoutSeconds = 600;
     m_slideIntervalSeconds = 10;
     m_backgroundColor    = QColor(0, 0, 0);
+    m_backgroundOpacity  = 1.0;
 }
 
 bool ScreenSaverConfig::load(const QString &filePath)
@@ -89,6 +90,9 @@ bool ScreenSaverConfig::load(const QString &filePath)
 
     if (obj.contains("background_color"))
         m_backgroundColor = QColor(obj["background_color"].toString());
+
+    if (obj.contains("background_opacity"))
+        m_backgroundOpacity = qBound(0.0, obj["background_opacity"].toDouble(1.0), 1.0);
 
     qDebug() << "ScreenSaverConfig: loaded successfully from" << filePath;
     return true;

@@ -9,6 +9,7 @@
 #include <cstring>
 #include <ctime>
 #include <cstdarg>
+#include <cstdlib>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/types.h>
@@ -201,7 +202,65 @@ void ScreenSaverDaemon::run(const std::string &screenSaverPath)
     logMsg("daemon stopped");
 }
 
-bool ScreenSaverDaemon::installSystemdService(const std::string &exePath) { return true; }
-bool ScreenSaverDaemon::uninstallSystemdService() { return true; }
+bool ScreenSaverDaemon::installSystemdService(const std::string &exePath) {
+    const std::string servicePath = "/etc/systemd/system/screensaver-guard.service";
+    std::ofstream ofs(servicePath);
+    if (!ofs.is_open()) {
+        logMsg("ERROR: Failed to open %s for writing. Root privileges required?", servicePath.c_str());
+        return false;
+    }
+
+    ofs << "[Unit]\n"
+        << "Description=ScreenSaver Guard Daemon\n"
+        << "After=display-manager.service\n\n"
+        << "[Service]\n"
+        << "Type=simple\n"
+        << "ExecStart=" << exePath << "\n"
+        << "Restart=always\n"
+        << "RestartSec=3\n\n"
+        << "[Install]\n"
+        << "WantedBy=graphical.target\n"
+        << "WantedBy=multi-user.target\n";
+    ofs.close();
+
+    logMsg("Reloading systemd daemon...");
+    if (system("systemctl daemon-reload") != 0) {
+        logMsg("Warning: systemctl daemon-reload failed");
+    }
+
+    logMsg("Enabling systemd service...");
+    if (system("systemctl enable screensaver-guard.service") != 0) {
+        logMsg("ERROR: Failed to enable screensaver-guard.service");
+        return false;
+    }
+
+    return true;
+}
+
+bool ScreenSaverDaemon::uninstallSystemdService() {
+    logMsg("Stopping systemd service...");
+    if (system("systemctl stop screensaver-guard.service") != 0) {
+        logMsg("Warning: systemctl stop failed");
+    }
+
+    logMsg("Disabling systemd service...");
+    if (system("systemctl disable screensaver-guard.service") != 0) {
+        logMsg("Warning: systemctl disable failed");
+    }
+
+    const std::string servicePath = "/etc/systemd/system/screensaver-guard.service";
+    if (remove(servicePath.c_str()) != 0) {
+        logMsg("Warning: Failed to remove %s", servicePath.c_str());
+    } else {
+        logMsg("Removed %s", servicePath.c_str());
+    }
+
+    logMsg("Reloading systemd daemon...");
+    if (system("systemctl daemon-reload") != 0) {
+        logMsg("Warning: systemctl daemon-reload failed");
+    }
+
+    return true;
+}
 
 #endif // !_WIN32
