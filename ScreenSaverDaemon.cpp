@@ -62,7 +62,7 @@ bool ScreenSaverDaemon::getActiveTTYDisplay(DisplaySession &session, std::string
         vtStr += activeTty.substr(3);
     }
     
-    std::string cmd = "ps -eo pid,cmd | grep -E 'Xorg|Xwayland'";
+    std::string cmd = "ps -eo uid,pid,cmd | grep -E 'Xorg|Xwayland'";
     FILE *p = popen(cmd.c_str(), "r");
     if (!p) return false;
     
@@ -72,7 +72,8 @@ bool ScreenSaverDaemon::getActiveTTYDisplay(DisplaySession &session, std::string
         std::string s(line);
         if (s.find("grep") != std::string::npos) continue;
         
-        if (s.find(vtStr) == std::string::npos && s.find(activeTty) == std::string::npos) {
+        bool isXwayland = (s.find("Xwayland") != std::string::npos);
+        if (!isXwayland && s.find(vtStr) == std::string::npos && s.find(activeTty) == std::string::npos) {
             continue;
         }
         
@@ -80,6 +81,12 @@ bool ScreenSaverDaemon::getActiveTTYDisplay(DisplaySession &session, std::string
         std::string token;
         std::string display;
         std::string auth;
+        uid_t uid = 0;
+        
+        if (iss >> uid) {
+            std::string pid_token;
+            iss >> pid_token;
+        }
         
         while (iss >> token) {
             if (token[0] == ':' && token.length() >= 2 && isdigit(token[1])) {
@@ -89,10 +96,15 @@ bool ScreenSaverDaemon::getActiveTTYDisplay(DisplaySession &session, std::string
             }
         }
         
-        if (!display.empty()) {
+        if (!display.empty() || isXwayland) {
             session.type = SessionType::X11;
-            session.display = display;
+            session.display = display.empty() ? ":0" : display;
             session.xauthority = auth;
+            session.uid = uid;
+            if (isXwayland) {
+                session.waylandDisplay = "wayland-0"; // Indicates XWayland
+                session.xdgRuntimeDir = "/run/user/" + std::to_string(uid); // Dynamically set runtime dir based on UID
+            }
             found = true;
             break;
         }
@@ -111,6 +123,18 @@ pid_t ScreenSaverDaemon::launchScreenSaver(const std::string &exePath, const Dis
 
     if (pid == 0) {
         setsid();
+        
+        // 为 root 授权访问该用户的 X11 会话
+        pid_t authPid = fork();
+        if (authPid == 0) {
+            setenv("DISPLAY", session.display.c_str(), 1);
+            setuid(session.uid);
+            execlp("xhost", "xhost", "+si:localuser:root", nullptr);
+            exit(1);
+        } else if (authPid > 0) {
+            waitpid(authPid, nullptr, 0);
+        }
+        
         if (session.type == SessionType::Wayland) {
             setenv("WAYLAND_DISPLAY", session.waylandDisplay.c_str(), 1);
             setenv("XDG_RUNTIME_DIR", session.xdgRuntimeDir.c_str(), 1);
@@ -121,6 +145,13 @@ pid_t ScreenSaverDaemon::launchScreenSaver(const std::string &exePath, const Dis
             if (!session.xauthority.empty())
                 setenv("XAUTHORITY", session.xauthority.c_str(), 1);
             setenv("QT_QPA_PLATFORM", "xcb", 1);
+            if (!session.waylandDisplay.empty()) {
+                setenv("WAYLAND_DISPLAY", session.waylandDisplay.c_str(), 1);
+                setenv("XDG_SESSION_TYPE", "wayland", 1);
+                if (!session.xdgRuntimeDir.empty()) {
+                    setenv("XDG_RUNTIME_DIR", session.xdgRuntimeDir.c_str(), 1);
+                }
+            }
         }
         // Redirect stderr to log
         freopen("/tmp/screensaver_crash.log", "w", stderr);

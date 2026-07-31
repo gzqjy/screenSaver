@@ -25,9 +25,11 @@ ScreenSaverWidget::ScreenSaverWidget(const ScreenSaverConfig &config, QWidget *p
     , m_active(false)
 {
     // 无边框 + 置顶 + X11 绕过窗口管理器 (用于在 Linux 锁屏界面上方绘制)
-    setWindowFlags(Qt::FramelessWindowHint
-                 | Qt::WindowStaysOnTopHint
-                 | Qt::X11BypassWindowManagerHint);
+    Qt::WindowFlags flags = Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint;
+#ifdef Q_OS_LINUX
+    flags |= Qt::X11BypassWindowManagerHint;
+#endif
+    setWindowFlags(flags);
 
     // 接收鼠标移动事件
     setMouseTracking(true);

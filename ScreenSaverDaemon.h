@@ -20,6 +20,7 @@ struct DisplaySession {
     std::string xauthority;     // X11: XAUTHORITY 路径
     std::string waylandDisplay; // Wayland: "wayland-0"
     std::string xdgRuntimeDir; // Wayland: XDG_RUNTIME_DIR
+    uid_t uid; // User ID owning the session
 };
 
 ///

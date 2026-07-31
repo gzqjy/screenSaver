@@ -14,6 +14,14 @@
   #include <QDBusInterface>
   #include <QDBusReply>
   #include <QProcessEnvironment>
+  
+  #include <QThread>
+  #include <QDir>
+  #include <fcntl.h>
+  #include <unistd.h>
+  #include <poll.h>
+  #include <linux/input.h>
+  #include <vector>
 
   // X11 用于 X11 空闲检测（可选，编译时检查）
   #if defined(HAVE_XSS)
@@ -175,6 +183,66 @@ static qint64 getIdleTimeFromX11()
 #endif
 }
 
+class EvdevMonitor : public QThread {
+public:
+    qint64 lastActivityTime;
+    
+    EvdevMonitor() {
+        lastActivityTime = QDateTime::currentMSecsSinceEpoch();
+    }
+    
+    void run() override {
+        QDir dir("/dev/input");
+        QStringList filters;
+        filters << "event*";
+        QStringList files = dir.entryList(filters, QDir::System | QDir::Files);
+        
+        std::vector<struct pollfd> fds;
+        for (const QString &file : files) {
+            QString path = "/dev/input/" + file;
+            int fd = open(path.toStdString().c_str(), O_RDONLY | O_NONBLOCK);
+            if (fd >= 0) {
+                struct pollfd pfd;
+                pfd.fd = fd;
+                pfd.events = POLLIN;
+                fds.push_back(pfd);
+            }
+        }
+        
+        while (!isInterruptionRequested()) {
+            if (fds.empty()) {
+                QThread::sleep(1);
+                continue;
+            }
+            
+            int ret = poll(fds.data(), fds.size(), 1000);
+            if (ret > 0) {
+                lastActivityTime = QDateTime::currentMSecsSinceEpoch();
+                for (auto &pfd : fds) {
+                    if (pfd.revents & POLLIN) {
+                        char buf[sizeof(struct input_event) * 16];
+                        while (read(pfd.fd, buf, sizeof(buf)) > 0) {}
+                    }
+                }
+            }
+        }
+        
+        for (auto &pfd : fds) {
+            close(pfd.fd);
+        }
+    }
+};
+
+static EvdevMonitor* s_evdevMonitor = nullptr;
+
+static qint64 getIdleTimeFromEvdev() {
+    if (!s_evdevMonitor) {
+        s_evdevMonitor = new EvdevMonitor();
+        s_evdevMonitor->start();
+    }
+    return QDateTime::currentMSecsSinceEpoch() - s_evdevMonitor->lastActivityTime;
+}
+
 /// 方法5: 读取 /proc/stat 输入设备中断计数（最终兜底）
 /// 通过检测键盘/鼠标中断次数变化来推算空闲时间
 static qint64 s_lastInterruptCount = -1;
@@ -266,13 +334,16 @@ static quint64 getSystemIdleTimeMsInternal()
     idle = getIdleTimeFromFreedesktop();
     if (idle >= 0) { /*qDebug() << "freedesktop sysIdle:" << idle;*/ return static_cast<quint64>(idle); }
 
-    // 4. X11: XScreenSaver 扩展（仅 X11 会话）
-    idle = getIdleTimeFromX11();
-    if (idle >= 0) { /*qDebug() << "X11 sysIdle:" << idle;*/ return static_cast<quint64>(idle); }
-
-    // 5. /proc/interrupts 兜底（不依赖任何显示服务）
-    idle = getIdleTimeFromProcInterrupts();
-    if (idle >= 0) { /*qDebug() << "Proc sysIdle:" << idle;*/ return static_cast<quint64>(idle); }
+    // 4. X11: XScreenSaver 扩展（仅原生 X11 会话）
+    bool isWayland = !qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY") || qgetenv("XDG_SESSION_TYPE") == "wayland";
+    if (!isWayland) {
+        idle = getIdleTimeFromX11();
+        if (idle >= 0) { /*qDebug() << "X11 sysIdle:" << idle;*/ return static_cast<quint64>(idle); }
+    } else {
+        // 5. Wayland 下由于 XWayland 收不到原生的鼠标事件，使用 /dev/input 直读 (必须 root)
+        idle = getIdleTimeFromEvdev();
+        if (idle >= 0) { /*qDebug() << "Evdev sysIdle:" << idle;*/ return static_cast<quint64>(idle); }
+    }
 
     return 0;
 
