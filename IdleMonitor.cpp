@@ -14,6 +14,14 @@
   #include <QDBusInterface>
   #include <QDBusReply>
   #include <QProcessEnvironment>
+  
+  #include <QThread>
+  #include <QDir>
+  #include <fcntl.h>
+  #include <unistd.h>
+  #include <poll.h>
+  #include <linux/input.h>
+  #include <vector>
 
   // X11 用于 X11 空闲检测（可选，编译时检查）
   #if defined(HAVE_XSS)
@@ -85,9 +93,72 @@ static qint64 getIdleTimeFromFreedesktop()
     return -1;
 }
 
+typedef struct {
+    unsigned long window;
+    int state;
+    int kind;
+    unsigned long til_or_since;
+    unsigned long idle;
+    unsigned long event_mask;
+} XScreenSaverInfo_Dynamic;
+
+static qint64 getIdleTimeFromX11Dynamic()
+{
+    static QLibrary xssLib("Xss", 1);
+    if (!xssLib.isLoaded()) xssLib.load();
+    if (!xssLib.isLoaded()) {
+        xssLib.setFileName("Xss");
+        xssLib.load();
+    }
+
+    if (xssLib.isLoaded()) {
+        typedef XScreenSaverInfo_Dynamic* (*XScreenSaverAllocInfoFunc)();
+        typedef int (*XScreenSaverQueryInfoFunc)(void*, unsigned long, XScreenSaverInfo_Dynamic*);
+        
+        static auto pAlloc = (XScreenSaverAllocInfoFunc)xssLib.resolve("XScreenSaverAllocInfo");
+        static auto pQuery = (XScreenSaverQueryInfoFunc)xssLib.resolve("XScreenSaverQueryInfo");
+        
+        if (pAlloc && pQuery) {
+            static QLibrary x11Lib("X11");
+            if (!x11Lib.isLoaded()) x11Lib.load();
+            if (x11Lib.isLoaded()) {
+                typedef void* (*XOpenDisplayFunc)(const char*);
+                typedef int (*XCloseDisplayFunc)(void*);
+                typedef unsigned long (*XDefaultRootWindowFunc)(void*);
+                typedef int (*XFreeFunc)(void*);
+                
+                static auto pOpen = (XOpenDisplayFunc)x11Lib.resolve("XOpenDisplay");
+                static auto pClose = (XCloseDisplayFunc)x11Lib.resolve("XCloseDisplay");
+                static auto pRoot = (XDefaultRootWindowFunc)x11Lib.resolve("XDefaultRootWindow");
+                static auto pFree = (XFreeFunc)x11Lib.resolve("XFree");
+                
+                if (pOpen && pClose && pRoot && pFree) {
+                    void* display = pOpen(nullptr);
+                    if (display) {
+                        XScreenSaverInfo_Dynamic* info = pAlloc();
+                        qint64 idleMs = -1;
+                        if (info) {
+                            if (pQuery(display, pRoot(display), info)) {
+                                idleMs = static_cast<qint64>(info->idle);
+                            }
+                            pFree(info);
+                        }
+                        pClose(display);
+                        if (idleMs >= 0) return idleMs;
+                    }
+                }
+            }
+        }
+    }
+    return -1;
+}
+
 /// 方法4: X11 XScreenSaver 扩展
 static qint64 getIdleTimeFromX11()
 {
+    qint64 dynamicIdle = getIdleTimeFromX11Dynamic();
+    if (dynamicIdle >= 0) return dynamicIdle;
+
 #if defined(HAVE_XSS)
     Display *display = XOpenDisplay(nullptr);
     if (!display)
@@ -110,6 +181,66 @@ static qint64 getIdleTimeFromX11()
 #else
     return -1;
 #endif
+}
+
+class EvdevMonitor : public QThread {
+public:
+    qint64 lastActivityTime;
+    
+    EvdevMonitor() {
+        lastActivityTime = QDateTime::currentMSecsSinceEpoch();
+    }
+    
+    void run() override {
+        QDir dir("/dev/input");
+        QStringList filters;
+        filters << "event*";
+        QStringList files = dir.entryList(filters, QDir::System | QDir::Files);
+        
+        std::vector<struct pollfd> fds;
+        for (const QString &file : files) {
+            QString path = "/dev/input/" + file;
+            int fd = open(path.toStdString().c_str(), O_RDONLY | O_NONBLOCK);
+            if (fd >= 0) {
+                struct pollfd pfd;
+                pfd.fd = fd;
+                pfd.events = POLLIN;
+                fds.push_back(pfd);
+            }
+        }
+        
+        while (!isInterruptionRequested()) {
+            if (fds.empty()) {
+                QThread::sleep(1);
+                continue;
+            }
+            
+            int ret = poll(fds.data(), fds.size(), 1000);
+            if (ret > 0) {
+                lastActivityTime = QDateTime::currentMSecsSinceEpoch();
+                for (auto &pfd : fds) {
+                    if (pfd.revents & POLLIN) {
+                        char buf[sizeof(struct input_event) * 16];
+                        while (read(pfd.fd, buf, sizeof(buf)) > 0) {}
+                    }
+                }
+            }
+        }
+        
+        for (auto &pfd : fds) {
+            close(pfd.fd);
+        }
+    }
+};
+
+static EvdevMonitor* s_evdevMonitor = nullptr;
+
+static qint64 getIdleTimeFromEvdev() {
+    if (!s_evdevMonitor) {
+        s_evdevMonitor = new EvdevMonitor();
+        s_evdevMonitor->start();
+    }
+    return QDateTime::currentMSecsSinceEpoch() - s_evdevMonitor->lastActivityTime;
 }
 
 /// 方法5: 读取 /proc/stat 输入设备中断计数（最终兜底）
@@ -203,13 +334,16 @@ static quint64 getSystemIdleTimeMsInternal()
     idle = getIdleTimeFromFreedesktop();
     if (idle >= 0) { /*qDebug() << "freedesktop sysIdle:" << idle;*/ return static_cast<quint64>(idle); }
 
-    // 4. X11: XScreenSaver 扩展（仅 X11 会话）
-    idle = getIdleTimeFromX11();
-    if (idle >= 0) { /*qDebug() << "X11 sysIdle:" << idle;*/ return static_cast<quint64>(idle); }
-
-    // 5. /proc/interrupts 兜底（不依赖任何显示服务）
-    idle = getIdleTimeFromProcInterrupts();
-    if (idle >= 0) { /*qDebug() << "Proc sysIdle:" << idle;*/ return static_cast<quint64>(idle); }
+    // 4. X11: XScreenSaver 扩展（仅原生 X11 会话）
+    bool isWayland = !qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY") || qgetenv("XDG_SESSION_TYPE") == "wayland";
+    if (!isWayland) {
+        idle = getIdleTimeFromX11();
+        if (idle >= 0) { /*qDebug() << "X11 sysIdle:" << idle;*/ return static_cast<quint64>(idle); }
+    } else {
+        // 5. Wayland 下由于 XWayland 收不到原生的鼠标事件，使用 /dev/input 直读 (必须 root)
+        idle = getIdleTimeFromEvdev();
+        if (idle >= 0) { /*qDebug() << "Evdev sysIdle:" << idle;*/ return static_cast<quint64>(idle); }
+    }
 
     return 0;
 

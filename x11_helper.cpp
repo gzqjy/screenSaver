@@ -16,14 +16,24 @@ static Window findLockScreen(Display *d, Window root, Window ignore) {
         
         XClassHint hint;
         if (XGetClassHint(d, child, &hint)) {
+            bool match = false;
             if (hint.res_name && hint.res_class) {
-                if (strstr(hint.res_name, "screensaver") || strstr(hint.res_name, "lock") || strstr(hint.res_name, "ksmserver") ||
-                    strstr(hint.res_class, "screensaver") || strstr(hint.res_class, "lock") || strstr(hint.res_class, "ksmserver")) {
-                    found = child;
+                if (strstr(hint.res_name, "screensaver") || (strstr(hint.res_name, "lock") && !strstr(hint.res_name, "clock")) || strstr(hint.res_name, "ksmserver") ||
+                    strstr(hint.res_class, "screensaver") || (strstr(hint.res_class, "lock") && !strstr(hint.res_class, "clock")) || strstr(hint.res_class, "ksmserver")) {
+                    match = true;
                 }
             }
             if (hint.res_name) XFree(hint.res_name);
             if (hint.res_class) XFree(hint.res_class);
+
+            if (match) {
+                XWindowAttributes attr;
+                if (XGetWindowAttributes(d, child, &attr)) {
+                    if (attr.map_state == IsViewable) {
+                        found = child;
+                    }
+                }
+            }
         }
         
         if (found) break;
