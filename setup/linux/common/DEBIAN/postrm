@@ -1,0 +1,26 @@
+#!/bin/sh
+set +e
+ 
+case "$1" in
+  purge)
+    
+    ;;
+ 
+  upgrade|remove|failed-upgrade|abort-install|abort-upgrade|disappear)
+    ;;
+ 
+  *)
+   
+    exit 1
+    ;;
+esac
+ 
+if [ "$1" = "remove" ]; then
+    rm -rf /opt/apps/com.sinoparasoft.mediumissue
+fi
+ 
+if [ "$1" = "purge" ]; then
+	echo "purge.."
+fi
+
+exit 0

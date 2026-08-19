@@ -1,0 +1,17 @@
+{
+    "appid": "com.sinoparasoft.mediumissue",
+    "name": "mediumissue",
+    "version": "1.0.0",
+    "arch": ["loongarch64"],
+    "permissions": {
+        "autostart": true,
+        "notification": false,
+        "trayicon": true,
+        "clipboard": false,
+        "account": true,
+        "bluetooth": false,
+        "camera": false,
+        "audio_record": false,
+        "installed_apps": true
+    }
+}

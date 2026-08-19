@@ -108,13 +108,48 @@ configure_file(
     COPYONLY
 )
 
+# ============================================================
+#  安装配置 (Install)
+# ============================================================
+include(GNUInstallDirs)
+
+# 安装 ScreenSaver 主程序
+install(TARGETS ScreenSaver
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    BUNDLE DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
 if(WIN32)
-    foreach(script setup_auto_login.bat setup_revert.bat)
-        if(EXISTS ${CMAKE_SOURCE_DIR}/${script})
-            configure_file(${CMAKE_SOURCE_DIR}/${script}
-                           ${CMAKE_BINARY_DIR}/${script} COPYONLY)
-        endif()
-    endforeach()
+    # Windows: 安装服务程序
+    install(TARGETS ScreenSaverService
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+
+elseif(UNIX AND NOT APPLE)
+    # Linux: 安装守护进程及 systemd 服务文件
+    install(TARGETS ScreenSaverDaemon
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+
+    if(EXISTS ${CMAKE_SOURCE_DIR}/screensaver.service)
+        install(FILES ${CMAKE_SOURCE_DIR}/screensaver.service
+            DESTINATION ${CMAKE_INSTALL_BINDIR}
+        )
+    endif()
+endif()
+
+# 安装配置文件
+if(EXISTS ${CMAKE_SOURCE_DIR}/screensaver_config.json)
+    install(FILES ${CMAKE_SOURCE_DIR}/screensaver_config.json
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+endif()
+
+# 安装壁纸资源目录（如果存在）
+if(EXISTS ${CMAKE_SOURCE_DIR}/wallpaper)
+    install(DIRECTORY ${CMAKE_SOURCE_DIR}/wallpaper/
+        DESTINATION ${CMAKE_INSTALL_BINDIR}/wallpaper
+    )
 endif()
 
 # ============================================================
@@ -129,4 +164,6 @@ if(WIN32)
 elseif(UNIX)
     message(STATUS "  Targets:    ScreenSaver + ScreenSaverDaemon")
 endif()
+message(STATUS "  Install to: ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}")
 message(STATUS "========================================")
+

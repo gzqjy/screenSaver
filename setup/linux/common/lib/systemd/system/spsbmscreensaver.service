@@ -1,0 +1,16 @@
+[Unit]
+Description=medium issue Daemon Service
+After=network.target
+#RefuseManualStop=yes
+
+[Service]
+WorkingDirectory=/opt/apps/com.sinoparasoft.screenSaver/files
+ExecStart=/opt/apps/com.sinoparasoft.screenSaver/files/screenSaverBackend start
+ExecStop=/opt/apps/com.sinoparasoft.screenSaver/files/screenSaverBackend stop
+Type=oneshot
+RemainAfterExit=yes
+Restart=no
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
