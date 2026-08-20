@@ -58,7 +58,7 @@ function  init()
   cur_time=$(date "+%Y-%m-%d %H:%M:%S")
   rm ${projectDir}/ver    &> /dev/null
   echo "[info]" >> ${projectDir}/ver
-  echo "build_version=$3" >> ${projectDir}/ver
+  echo "build_version=${BUILD_NUM}" >> ${projectDir}/ver
   echo "build_time=$cur_time" >> ${projectDir}/ver
   echo "version=${version}" >> ${projectDir}/ver
   echo "vendor=sinoparasoft" >> ${projectDir}/ver
@@ -203,7 +203,7 @@ function update_and_compress() {
   local ARCHITECT="$2"
 
   local JSON_FILE="abstract.json"
-  local PACKAGE_NAME="com.sinoparasoft.mediumissue_${PACKAGE_VERSION}_${ARCHITECT}.deb"
+  local PACKAGE_NAME="com.sinoparasoft.screenSaver_${PACKAGE_VERSION}_${ARCHITECT}.deb"
 
   sed -i \
       -e "s#\"PACKAGE_NAME\": \"[^\"]*\"#\"PACKAGE_NAME\": \"$PACKAGE_NAME\"#" \
@@ -218,7 +218,7 @@ function update_and_compress() {
 
   echo "Updated $JSON_FILE successfully."
 
-  local ZIP_NAME="com.sinoparasoft.mediumissue_${PACKAGE_VERSION}_${ARCHITECT}.zip"
+  local ZIP_NAME="com.sinoparasoft.screenSaver_${PACKAGE_VERSION}_${ARCHITECT}.zip"
   zip -r "$ZIP_NAME" "$PACKAGE_NAME" "$JSON_FILE" > /dev/null
 
   if [ $? -eq 0 ]; then

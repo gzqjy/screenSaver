@@ -13,9 +13,9 @@ ARCH=$1
 BUILD_NUM=$2
 BRANCH=$3
 export BUILD_NUM=$BUILD_NUM
-mkdir $basepath/build-$ARCH
-mkdir $basepath/output-$ARCH
-mkdir $basepath/deps
+mkdir -p $basepath/build-$ARCH
+mkdir -p $basepath/output-$ARCH
+mkdir -p $basepath/deps
 
 export BOOST_ROOT=/opt/boost_1_87_0
 
@@ -71,18 +71,21 @@ download_product() {
 
 pushd $basepath/build-$ARCH
 cmake .. -DARCH_NAME=$ARCH -DCMAKE_INSTALL_PREFIX=$basepath/output-$ARCH
-if [ $? -ne 0 ]; then
-    echo "构建失败，退出。"
-    exit $?
+RET=$?
+if [ $RET -ne 0 ]; then
+    echo "cmake 配置失败，退出。"
+    popd
+    exit $RET
 fi
 
 make -j$(nproc)
-if [ $? -ne 0 ]; then
-    echo "构建失败，退出。"
-    exit $?
+RET=$?
+if [ $RET -ne 0 ]; then
+    echo "make 构建失败，退出。"
+    popd
+    exit $RET
 fi
 echo "构建成功！"
-make -j$(( $(nproc) / 2 ))
 make install
 
 #\cp $basepath/deps/* $basepath/output-$ARCH/ -af
@@ -99,6 +102,10 @@ elif [ "$ARCH" == "arm64" ]; then
     cp /opt/boost_1_87_0/lib/libboost_filesystem.so.1.87.0 $basepath/output-$ARCH/bin/lib
 #    cp /opt/boost_1_87_0/lib/libboost_program_options.so.1.87.0 $basepath/output-$ARCH/bin/lib
 #    cp /opt/boost_1_87_0/lib/libboost_thread_options.so.1.87.0 $basepath/output-$ARCH/bin/lib
+    rm -rf $basepath/output-$ARCH/lib
+    rm -rf $basepath/output-$ARCH/include
+elif [ "$ARCH" == "mips64" ]; then
+    cp /opt/boost_1_87_0/lib/libboost_filesystem.so.1.87.0 $basepath/output-$ARCH/bin/lib
     rm -rf $basepath/output-$ARCH/lib
     rm -rf $basepath/output-$ARCH/include
 elif [ "$ARCH" == "loongarch64" ]; then
@@ -120,7 +127,8 @@ cp -r $basepath/output-$ARCH/screenSaver/* $basepath/setup/linux/build/
 
 echo "Calling setup/linux/build_linux.sh for packaging..."
 bash $basepath/setup/linux/build_linux.sh $ARCH -a $BUILD_NUM "$BRANCH"
-if [ $? -ne 0 ]; then
+RET=$?
+if [ $RET -ne 0 ]; then
     echo "Linux build_linux.sh failed!"
-    exit $?
+    exit $RET
 fi
