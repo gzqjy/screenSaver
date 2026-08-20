@@ -75,18 +75,33 @@ setlocal
 @REM "%ZIP_TOOL%" a -tzip -r "screenSaver-%BUILD_NUM%-%ARCH%.zip" "%basepath%screenSaver-%ARCH%\screenSaver\*"
 @REM echo "ZIP build success!"
 
-echo "Copying files for NSIS packaging..."
-if not exist "%basepath%setup\windows\bin" mkdir "%basepath%setup\windows\bin"
-xcopy "%basepath%screenSaver-%ARCH%\screenSaver\*" "%basepath%setup\windows\bin\" /y /s
+echo "Packaging in temporary staging directory..."
+set "STAGING_DIR=%basepath%build-%ARCH%\pkg_staging"
+if exist "%STAGING_DIR%" rd /s /q "%STAGING_DIR%"
+mkdir "%STAGING_DIR%"
+mkdir "%STAGING_DIR%\bin"
 
-echo "Calling setup\windows\build_win.bat for packaging..."
-call "%basepath%setup\windows\build_win.bat" %BUILD_NUM% %branch%
-if %ERRORLEVEL% NEQ 0 (
-    echo Windows build_win.bat failed!
-    exit /b %ERRORLEVEL%
+echo "Copying setup template to staging..."
+xcopy "%basepath%setup\windows\*" "%STAGING_DIR%\" /y /s /e
+
+echo "Copying binaries to staging\bin..."
+xcopy "%basepath%screenSaver-%ARCH%\screenSaver\*" "%STAGING_DIR%\bin\" /y /s /e
+
+echo "Calling staging build_win.bat for packaging..."
+@pushd "%STAGING_DIR%"
+call "%STAGING_DIR%\build_win.bat" %BUILD_NUM% %branch% "%basepath%"
+set PKG_RET=%ERRORLEVEL%
+@popd
+
+if %PKG_RET% NEQ 0 (
+    echo Windows packaging failed!
+    exit /b %PKG_RET%
 )
+
+echo "Cleaning up temporary staging directory..."
+if exist "%STAGING_DIR%" rd /s /q "%STAGING_DIR%"
 
 endlocal
 @popd
 
-echo "Windows packaging complete!"
+echo "Windows packaging complete! Output packages in %basepath%"

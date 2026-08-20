@@ -6,13 +6,16 @@ cd /d "%basepath%"
 echo Basepath: %basepath%
 
 if "%1"=="" (
-    echo Usage: build_win.bat build_num branch
+    echo Usage: build_win.bat build_num branch [output_dir]
     exit /b 1
 )
 set build_num=%1
 set branch=%2
+set "ROOT_DIR=%~3"
+if "%ROOT_DIR%"=="" set "ROOT_DIR=%basepath%..\..\"
 echo Build number is: %build_num%
 echo Branch is: %branch%
+echo Root directory is: %ROOT_DIR%
 
 set version=1.1.0.%build_num%
 echo Version is: %version%
@@ -84,6 +87,9 @@ if %ERRORLEVEL% NEQ 0 (
     echo update_and_compress.bat failed!
     exit /b %ERRORLEVEL%
 )
+
+if exist "%basepath%*.zip" copy /y "%basepath%*.zip" "%ROOT_DIR%\"
+if exist "%basepath%ScreenSaver_Setup.exe" copy /y "%basepath%ScreenSaver_Setup.exe" "%ROOT_DIR%\"
 
 endlocal
 @popd

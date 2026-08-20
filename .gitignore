@@ -1,1 +1,11 @@
 build/
+build-*/
+output-*/
+screenSaver-*/
+deps/
+*.deb
+*.zip
+*.exe
+*.rpm
+*.tar.gz
+*.7z

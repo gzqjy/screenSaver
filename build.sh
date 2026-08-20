@@ -121,14 +121,14 @@ fi
 mv $basepath/output-$ARCH/bin $basepath/output-$ARCH/screenSaver
 popd
 
-echo "Copying files for packaging..."
-mkdir -p $basepath/setup/linux/build
-cp -r $basepath/output-$ARCH/screenSaver/* $basepath/setup/linux/build/
-
 echo "Calling setup/linux/build_linux.sh for packaging..."
+export BUILD_FILE_DIR="$basepath/output-$ARCH/screenSaver"
 bash $basepath/setup/linux/build_linux.sh $ARCH -a $BUILD_NUM "$BRANCH"
 RET=$?
 if [ $RET -ne 0 ]; then
     echo "Linux build_linux.sh failed!"
     exit $RET
 fi
+
+echo "Linux build and packaging completed successfully!"
+exit 0
