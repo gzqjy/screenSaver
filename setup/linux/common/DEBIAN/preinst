@@ -1,20 +1,20 @@
 #!/bin/sh
 set +e
- 
+
 case "$1" in
-  install)
+  install|upgrade)
+    if command -v systemctl >/dev/null 2>&1; then
+      systemctl stop spsbmscreensaver.service 2>/dev/null || true
+    fi
     ;;
- 
-  upgrade)
-    # upgrade
-    ;;
- 
+
   abort-upgrade)
     ;;
- 
+
   *)
     echo "preinst called with unknown argument \`$1'" >&2
     exit 1
     ;;
 esac
+
 exit 0

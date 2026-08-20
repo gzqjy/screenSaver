@@ -1,5 +1,5 @@
 Package: com.sinoparasoft.screenSaver
-Version: 1.0.0
-Architecture: arm64
+Version: 1.1.123
+Architecture: amd64
 Maintainer: sinoparasoft <825277601@qq.com>
 Description: This is an security package

@@ -1,12 +1,21 @@
 #!/bin/sh
 set +e
 
+case "$1" in
+  remove|upgrade|deconfigure)
+    if command -v systemctl >/dev/null 2>&1; then
+      systemctl stop spsbmscreensaver.service 2>/dev/null || true
+      systemctl disable spsbmscreensaver.service 2>/dev/null || true
+    fi
+    ;;
 
-if [ "$1" = "upgrade" ]; then
-    # todo 保存升级文件
-fi
+  failed-upgrade)
+    ;;
 
-if [ "$1" = "remove" ]; then
-    systemctl stop spsbmmediumissue.service
-    systemctl disable spsbmmediumissue.service
-fi
+  *)
+    echo "prerm called with unknown argument \`$1'" >&2
+    exit 1
+    ;;
+esac
+
+exit 0

@@ -2,12 +2,13 @@
 
 start()
 {
-    /opt/apps/com.sinoparasoft.screenSaver/screenSaver > /dev/null 2>&1 &
+    /opt/apps/com.sinoparasoft.screenSaver/files/ScreenSaverDaemon > /dev/null 2>&1 &
 }
 
 stop()
 {
-    killall screenSaver > /dev/null 2>&1
+    killall ScreenSaverDaemon > /dev/null 2>&1
+    killall ScreenSaver > /dev/null 2>&1
 }
 
 case "$1" in

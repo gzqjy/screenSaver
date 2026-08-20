@@ -1,20 +1,21 @@
 #!/bin/sh
 set +e
- 
+
 case "$1" in
   configure)
+    chmod -R 755 /opt/apps/com.sinoparasoft.screenSaver/files
 
-    chmod -R 777 /opt/apps/com.sinoparasoft.mediumissue/files
-
-    # 先停止运行中的进程
-    systemctl enable spsbmmediumissue.service
-    systemctl daemon-reload
-    systemctl restart spsbmmediumissue.service
+    # 重新加载配置并启用、启动服务
+    if command -v systemctl >/dev/null 2>&1; then
+      systemctl daemon-reload
+      systemctl enable spsbmscreensaver.service
+      systemctl restart spsbmscreensaver.service
+    fi
     ;;
- 
+
   abort-upgrade|abort-remove|abort-deconfigure)
     ;;
- 
+
   *)
     echo "postinst called with unknown argument \`$1'" >&2
     exit 1

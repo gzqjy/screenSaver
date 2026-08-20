@@ -1,5 +1,5 @@
 [Unit]
-Description=medium issue Daemon Service
+Description=ScreenSaver Daemon Service
 After=network.target
 #RefuseManualStop=yes
 

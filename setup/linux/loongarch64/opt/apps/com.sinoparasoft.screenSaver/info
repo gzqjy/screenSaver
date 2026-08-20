@@ -1,6 +1,6 @@
 {
-    "appid": "com.sinoparasoft.mediumissue",
-    "name": "mediumissue",
+    "appid": "com.sinoparasoft.screenSaver",
+    "name": "screenSaver",
     "version": "1.0.0",
     "arch": ["loongarch64"],
     "permissions": {
